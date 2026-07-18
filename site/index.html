@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inzo — an endless canvas you can dive into, forever</title>
+<meta name="description" content="Inzo is an infinite drawing space with no zoom limit. Paint a solar system, dive to a single atom, and never hit an edge. Now on Google Play — Mac & Web coming soon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25'%3E%3Cstop offset='0%25' stop-color='%23B4F1FF'/%3E%3Cstop offset='55%25' stop-color='%2345E4FF'/%3E%3Cstop offset='100%25' stop-color='%237CC4FF'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)'/%3E%3C/svg%3E">
+<style>
+  :root[data-theme="night"] {
+    --bg: #0a0c15;           --bg-top: #18203a;
+    --panel: rgba(19,23,37,.80);  --panel-solid: #131725;
+    --border: rgba(255,255,255,.09);
+    --chip: rgba(255,255,255,.06); --soft: rgba(255,255,255,.08);
+    --text: #EAF0FF;         --dim: #8B93B4;
+    --accent: #45E4FF;       --accent2: #7CC4FF;  --accent-hi: #B4F1FF;
+    --accent-soft: rgba(69,228,255,.14);          --accent-ink: #06131A;
+    --ring: rgba(255,255,255,.055);
+    --art0:#45E4FF; --art1:#FF7AC6; --art2:#7CFFC4; --art3:#FFE07A; --art4:#A78BFA;
+    --shadow: 0 14px 34px rgba(0,0,0,.55);
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-body: "Space Grotesk", system-ui, sans-serif;
+    --font-mono: "Space Mono", ui-monospace, monospace;
+    --glow-alpha: .55;
+  }
+  :root[data-theme="day"] {
+    --bg: #FBF7F1;           --bg-top: #FFFFFF;
+    --panel: rgba(255,255,255,.86); --panel-solid: #FFFFFF;
+    --border: #F0E8DC;
+    --chip: #F7F1E8;         --soft: #F3EDE3;
+    --text: #2B2622;         --dim: #8B8175;
+    --accent: #FF6B57;       --accent2: #FF9F45;  --accent-hi: #FF8A6B;
+    --accent-soft: #FFEDE8;                       --accent-ink: #FFFFFF;
+    --ring: rgba(160,120,70,.10);
+    --art0:#FF6B57; --art1:#34D6A8; --art2:#4DA8FF; --art3:#FFC13B; --art4:#9B6BFF;
+    --shadow: 0 14px 34px rgba(90,60,25,.18);
+    --font-display: "Fredoka", system-ui, sans-serif;
+    --font-body: "Nunito", system-ui, sans-serif;
+    --font-mono: "Space Mono", ui-monospace, monospace;
+    --glow-alpha: .35;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    overflow-x: hidden;
+    transition: background .5s, color .5s;
+  }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+  a { color: var(--accent); text-decoration: none; }
+  h1,h2,h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.12; }
+  button { font-family: inherit; }
+
+  /* ---- backdrop: the whole page floats over "the canvas" ---- */
+  #backdrop { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
+  #backdrop .glow {
+    position: absolute; inset: 0;
+    background: radial-gradient(120% 90% at 50% -10%, var(--bg-top) 0%, var(--bg) 62%);
+    transition: background .5s;
+  }
+  #rings { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* ---- floating chrome ---- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 26px;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .puck {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--accent-hi), var(--accent) 55%, var(--accent2));
+    box-shadow: 0 0 0 4px var(--accent-soft), 0 4px 22px rgba(0,0,0,.25);
+    animation: puckPulse 4.5s ease-in-out infinite;
+  }
+  @keyframes puckPulse {
+    0%,100% { box-shadow: 0 0 0 4px var(--accent-soft), 0 4px 22px rgba(0,0,0,.25); }
+    50%     { box-shadow: 0 0 0 9px var(--accent-soft), 0 6px 30px rgba(0,0,0,.3); }
+  }
+  .brand span { font-family: var(--font-display); font-size: 24px; font-weight: 600; letter-spacing: .01em; }
+  .chrome-right { display: flex; align-items: center; gap: 12px; }
+
+  .glass {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--shadow);
+    transition: background .5s, border-color .5s;
+  }
+
+  /* day / night toggle */
+  #themeToggle {
+    position: relative; width: 74px; height: 36px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--chip);
+    cursor: pointer; padding: 0;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  #themeToggle .knob {
+    position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--accent-hi), var(--accent) 60%, var(--accent2));
+    transition: transform .35s cubic-bezier(.5,1.5,.5,1);
+  }
+  :root[data-theme="day"] #themeToggle .knob { transform: translateX(38px); }
+  #themeToggle svg { position: absolute; top: 9px; width: 17px; height: 17px; color: var(--dim); }
+  #themeToggle .moon { left: 9px; }  #themeToggle .sun { right: 9px; }
+
+  .play-mini {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    background: linear-gradient(120deg, var(--accent), var(--accent2));
+    color: var(--accent-ink); font-weight: 700; font-size: 14px;
+    font-family: var(--font-display);
+    box-shadow: 0 4px 18px var(--accent-soft);
+    transition: transform .15s;
+  }
+  .play-mini:hover { transform: translateY(-1px); }
+
+  /* ---- dive rail: section bookmarks ---- */
+  #rail {
+    position: fixed; right: 20px; top: 50%; transform: translateY(-50%); z-index: 50;
+    display: flex; flex-direction: column; gap: 16px; align-items: center;
+    padding: 14px 9px; border-radius: 999px;
+  }
+  #rail a {
+    position: relative; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--chip); border: 1px solid var(--border);
+    transition: background .25s, transform .25s, box-shadow .25s;
+  }
+  #rail a.active {
+    background: var(--accent); border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent); transform: scale(1.25);
+  }
+  #rail a::after {
+    content: attr(data-label);
+    position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 3px 9px; border-radius: 8px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  #rail a:hover::after { opacity: 1; }
+
+  /* ---- hero ---- */
+  #home { position: relative; min-height: 100svh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #dive { position: absolute; inset: 0; width: 100%; height: 100%; opacity: var(--glow-alpha); transition: opacity .5s; }
+  .hero-inner { position: relative; text-align: center; padding: 110px 24px 80px; max-width: 880px; }
+  .hero-kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--dim); border: 1px solid var(--border); background: var(--chip);
+    padding: 6px 14px; border-radius: 999px; margin-bottom: 26px;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .hero-kicker .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--art2); box-shadow: 0 0 8px var(--art2); }
+  h1 {
+    font-size: clamp(40px, 7.2vw, 78px); font-weight: 700; letter-spacing: -.02em;
+    margin-bottom: 20px;
+  }
+  h1 .grad {
+    background: linear-gradient(100deg, var(--accent), var(--accent2), var(--art1));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero-sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--dim); max-width: 620px; margin: 0 auto 14px; }
+  #magline {
+    font-family: var(--font-mono); font-size: 14px; color: var(--accent);
+    margin-bottom: 34px; min-height: 22px; text-shadow: 0 0 18px var(--accent-soft);
+  }
+  #magline sup { font-size: 10px; }
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; align-items: center; }
+  .play-btn {
+    display: inline-flex; align-items: center; gap: 13px;
+    padding: 14px 26px; border-radius: 18px;
+    background: linear-gradient(120deg, var(--accent), var(--accent2));
+    color: var(--accent-ink); box-shadow: 0 10px 34px var(--accent-soft), var(--shadow);
+    transition: transform .18s, box-shadow .18s;
+  }
+  .play-btn:hover { transform: translateY(-2px) scale(1.02); }
+  .play-btn .tri { width: 26px; height: 26px; flex: none; }
+  .play-btn .lines { text-align: left; line-height: 1.15; font-family: var(--font-display); }
+  .play-btn .lines small { display: block; font-size: 11px; font-weight: 500; opacity: .82; letter-spacing: .06em; text-transform: uppercase; }
+  .play-btn .lines b { font-size: 19px; font-weight: 700; }
+  .soon { display: flex; gap: 10px; }
+  .soon span {
+    font-family: var(--font-mono); font-size: 12px; color: var(--dim);
+    border: 1px dashed var(--border); background: var(--chip);
+    padding: 9px 14px; border-radius: 12px;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .scroll-hint {
+    position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: .2em; color: var(--dim);
+    animation: bob 2.4s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translate(-50%,0);} 50% { transform: translate(-50%,7px);} }
+
+  /* ---- sections ---- */
+  section { position: relative; padding: 90px 24px; max-width: 1080px; margin: 0 auto; }
+  .sec-kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  h2 { font-size: clamp(28px, 4.4vw, 44px); letter-spacing: -.015em; margin-bottom: 14px; }
+  .sec-sub { color: var(--dim); max-width: 640px; margin-bottom: 40px; font-size: 17px; }
+
+  /* reveal on scroll */
+  .rv { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+  .rv.in { opacity: 1; transform: none; }
+
+  /* ---- demo ---- */
+  #demo-frame {
+    position: relative; border-radius: 26px; overflow: hidden;
+    height: min(66vh, 560px); min-height: 420px;
+    background: var(--bg); border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  #demo-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  .demo-panel { position: absolute; z-index: 5; border-radius: 18px; }
+
+  #demo-dock {
+    left: 14px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  }
+  #demo-dock button, .icon-btn {
+    width: 40px; height: 40px; border-radius: 13px; border: none; cursor: pointer;
+    background: transparent; color: var(--dim);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s, color .2s, box-shadow .2s;
+  }
+  #demo-dock button:hover, .icon-btn:hover { background: var(--soft); color: var(--text); }
+  #demo-dock button.on {
+    background: linear-gradient(120deg, var(--accent), var(--accent2));
+    color: var(--accent-ink); box-shadow: 0 2px 14px var(--accent-soft);
+  }
+  #demo-dock svg, .icon-btn svg { width: 20px; height: 20px; }
+
+  #demo-options {
+    left: 50%; bottom: 14px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px; padding: 9px 14px;
+    max-width: calc(100% - 28px); flex-wrap: wrap; justify-content: center;
+  }
+  .swatches { display: flex; gap: 7px; }
+  .swatches button {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .swatches button.on { border-color: var(--text); transform: scale(1.18); box-shadow: 0 0 10px currentColor; }
+  .vsep { width: 1px; height: 22px; background: var(--border); }
+  #size { accent-color: var(--accent); width: 86px; }
+  #demo-zoom-label { font-family: var(--font-mono); font-size: 12px; color: var(--dim); min-width: 64px; text-align: center; }
+
+  #demo-undo { left: 14px; bottom: 14px; display: flex; gap: 4px; padding: 6px; }
+  #demo-rail {
+    right: 14px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 8px;
+  }
+  #demo-rail .bm {
+    width: 13px; height: 13px; border-radius: 50%; border: none; cursor: pointer; padding: 0;
+    box-shadow: 0 0 10px currentColor; transition: transform .2s;
+  }
+  #demo-rail .bm:hover { transform: scale(1.3); }
+  #demo-rail .hintlab {
+    writing-mode: vertical-rl; font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: .18em; color: var(--dim); text-transform: uppercase;
+  }
+
+  #autopilot-chip {
+    position: absolute; z-index: 6; top: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 9px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--dim);
+    padding: 7px 14px; border-radius: 999px; cursor: pointer; border: 1px solid var(--border);
+    background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    transition: color .2s;
+  }
+  #autopilot-chip:hover { color: var(--text); }
+  #autopilot-chip .live { width: 7px; height: 7px; border-radius: 50%; background: var(--art1); box-shadow: 0 0 8px var(--art1); animation: puckPulse 1.6s infinite; }
+  #autopilot-chip.paused .live { background: var(--dim); box-shadow: none; animation: none; }
+  .demo-caption {
+    margin-top: 14px; text-align: center;
+    font-family: var(--font-mono); font-size: 12px; color: var(--dim);
+  }
+
+  /* ---- real screenshots ---- */
+  .shot { margin: 0; }
+  .shot img {
+    display: block; width: 100%; height: auto; border-radius: 22px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    transition: transform .25s;
+  }
+  .shot img:hover { transform: translateY(-4px) scale(1.005); }
+  .shot figcaption {
+    font-family: var(--font-mono); font-size: 12px; color: var(--dim);
+    text-align: center; margin-top: 12px;
+  }
+  .shot.big { margin-bottom: 26px; }
+  .shot-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 720px) { .shot-pair { grid-template-columns: 1fr; } }
+
+  /* ---- features ---- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .card { border-radius: 22px; padding: 26px; position: relative; overflow: hidden; }
+  .card .glyph {
+    width: 46px; height: 46px; border-radius: 15px; margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--chip); border: 1px solid var(--border);
+  }
+  .card .glyph svg { width: 24px; height: 24px; }
+  .card h3 { font-size: 19px; margin-bottom: 8px; }
+  .card p { color: var(--dim); font-size: 15px; }
+  .card::before {
+    content: ""; position: absolute; top: -40px; right: -40px; width: 130px; height: 130px;
+    border-radius: 50%; background: var(--card-tint, var(--accent)); opacity: .09; filter: blur(30px);
+    transition: opacity .3s;
+  }
+  .card:hover::before { opacity: .2; }
+
+  /* ---- get / footer ---- */
+  #get .big-card {
+    border-radius: 30px; padding: clamp(36px, 6vw, 70px); text-align: center;
+    position: relative; overflow: hidden;
+  }
+  #get .big-card h2 { margin-bottom: 10px; }
+  #get .big-card .sec-sub { margin: 0 auto 34px; }
+  #get-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .5; pointer-events: none; }
+  #get .inner { position: relative; }
+
+  footer {
+    max-width: 1080px; margin: 0 auto; padding: 30px 24px 46px;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    color: var(--dim); font-size: 13px; font-family: var(--font-mono);
+  }
+  footer .fbrand { display: flex; align-items: center; gap: 9px; }
+  footer .puck { width: 18px; height: 18px; animation: none; box-shadow: none; }
+
+  @media (max-width: 720px) {
+    #rail { display: none; }
+    .chrome-right .play-mini { display: none; }
+    #demo-rail .hintlab { display: none; }
+    #demo-options { gap: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .puck, .scroll-hint, #autopilot-chip .live { animation: none; }
+    .rv { transition: none; opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="backdrop"><div class="glow"></div><canvas id="rings"></canvas></div>
+
+<header>
+  <div class="brand"><div class="puck"></div><span>Inzo</span></div>
+  <div class="chrome-right">
+    <button id="themeToggle" aria-label="Toggle day / night theme">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A7.5 7.5 0 1 1 9.5 4a6 6 0 0 0 10.5 10.5z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg>
+      <span class="knob"></span>
+    </button>
+    <a class="play-mini" href="https://play.google.com/store/apps/details?id=com.inzo.app">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3.5v17c0 .6.7 1 1.2.7l14-8.5c.5-.3.5-1 0-1.4l-14-8.5c-.5-.3-1.2.1-1.2.7z"/></svg>
+      Google Play
+    </a>
+  </div>
+</header>
+
+<nav id="rail" class="glass" aria-label="Sections">
+  <a href="#home" data-label="dive in"></a>
+  <a href="#try" data-label="try it"></a>
+  <a href="#real" data-label="the real thing"></a>
+  <a href="#features" data-label="features"></a>
+  <a href="#get" data-label="get inzo"></a>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<section id="home">
+  <canvas id="dive"></canvas>
+  <div class="hero-inner">
+    <div class="hero-kicker rv in"><span class="dot"></span>infinite canvas · unlimited zoom</div>
+    <h1 class="rv in">An endless canvas.<br><span class="grad">Dive in, forever.</span></h1>
+    <p class="hero-sub rv in">Paint a solar system. Zoom down to a single atom. Inzo has <em>no zoom limit</em> and no edges — just you, real brushes, and infinite room.</p>
+    <div id="magline" aria-hidden="true">×10<sup>0</sup></div>
+    <div class="cta-row rv in">
+      <a class="play-btn" href="https://play.google.com/store/apps/details?id=com.inzo.app">
+        <svg class="tri" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3.2v17.6c0 .8.9 1.3 1.6.9l4.6-2.7 3.4-2 6.9-4c.7-.4.7-1.4 0-1.8l-6.9-4-3.4-2L5.6 2.3c-.7-.4-1.6.1-1.6.9z"/></svg>
+        <span class="lines"><small>Get it on</small><b>Google Play</b></span>
+      </a>
+      <div class="soon"><span>Mac — soon</span><span>Web — soon</span></div>
+    </div>
+  </div>
+  <div class="scroll-hint">SCROLL TO DIVE ↓</div>
+</section>
+
+<!-- ==================== DEMO ==================== -->
+<section id="try">
+  <div class="sec-kicker rv">display demo</div>
+  <h2 class="rv">Try a tiny Inzo</h2>
+  <p class="sec-sub rv">A <em>very</em> stripped-down Inzo, right in the page — it paints its own little demo until you take over. Draw, scroll to zoom, drop a bookmark, dive back. The real app goes much, <em>much</em> deeper.</p>
+
+  <div id="demo-frame" class="rv">
+    <canvas id="demo-canvas"></canvas>
+
+    <button id="autopilot-chip"><span class="live"></span><span id="autopilot-label">painting a demo — click canvas to take over</span></button>
+
+    <div id="demo-dock" class="demo-panel glass" role="toolbar" aria-label="Tools">
+      <button data-tool="brush" class="on" title="Brush (B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L10 17l-4 1 1-4Z"/><path d="M6 21c-1.7 0-3-1.3-3-3 1 0 2 .5 2 1.5"/></svg></button>
+      <button data-tool="pan" title="Pan (H)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6.5a1.5 1.5 0 0 0-3 0V11m0-1.5v-3a1.5 1.5 0 0 0-3 0V11m0-1V4.5a1.5 1.5 0 0 0-3 0V12m9-1.5a1.5 1.5 0 0 1 3 0V14a8 8 0 0 1-8 8h-1c-3 0-5-1.5-6.5-4L4 14.5c-.6-1-.2-2.2.8-2.7 1-.5 2-.2 2.7.7L9 14"/></svg></button>
+      <button data-tool="eraser" title="Eraser (E) — erases whole strokes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/></svg></button>
+    </div>
+
+    <div id="demo-options" class="demo-panel glass">
+      <div class="swatches" id="swatches"></div>
+      <div class="vsep"></div>
+      <input id="size" type="range" min="2" max="26" value="6" title="Brush size">
+      <div class="vsep"></div>
+      <button class="icon-btn" id="zoom-out" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6"/></svg></button>
+      <span id="demo-zoom-label">×1.0</span>
+      <button class="icon-btn" id="zoom-in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M8 11h6M11 8v6"/></svg></button>
+      <div class="vsep"></div>
+      <button class="icon-btn" id="bookmark" title="Save this view as a bookmark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+    </div>
+
+    <div id="demo-undo" class="demo-panel glass">
+      <button class="icon-btn" id="undo" title="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button class="icon-btn" id="clear" title="Clear canvas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6"/></svg></button>
+    </div>
+
+    <div id="demo-rail" class="demo-panel glass">
+      <span class="hintlab">dive rail</span>
+    </div>
+  </div>
+  <p class="demo-caption rv">this toy has 3 tools, 5 colours and one layer — the real Inzo adds 11 brushes, wet oil &amp; watercolour, shapes, fill, text, layers, grids, export and more.</p>
+</section>
+
+<!-- ==================== REAL SCREENSHOTS ==================== -->
+<section id="real">
+  <div class="sec-kicker rv">the real thing</div>
+  <h2 class="rv">This is actual Inzo.</h2>
+  <p class="sec-sub rv">Straight screenshots of the app — the glass tool dock, the dive rail of bookmarks, the live minimap, and a library of 37 built-in example drawings to pull apart and learn from.</p>
+  <figure class="shot big rv">
+    <img src="assets/app-koi-night.webp" alt="Inzo's editor at night: the Koi Pond example drawing with the tool dock, dive rail and minimap floating over the canvas" loading="lazy">
+    <figcaption>the editor, night mood — koi pond (a built-in example)</figcaption>
+  </figure>
+  <div class="shot-pair">
+    <figure class="shot rv">
+      <img src="assets/app-koi-day.webp" alt="The same Koi Pond drawing after one tap of the day/night toggle: warm coral chrome on cream" loading="lazy">
+      <figcaption>one tap later — the same canvas in the day mood</figcaption>
+    </figure>
+    <figure class="shot rv">
+      <img src="assets/app-library.webp" alt="Inzo's Home library: cards of drawings organised in folders, including the Showcase examples" loading="lazy">
+      <figcaption>home — your drawings, plus 37 examples in 7 folders</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ==================== FEATURES ==================== -->
+<section id="features">
+  <div class="sec-kicker rv">what's inside</div>
+  <h2 class="rv">Small app. Bottomless canvas.</h2>
+  <p class="sec-sub rv">Everything you need to paint big and dive deep — nothing you don't.</p>
+  <div class="grid">
+    <div class="card glass rv" style="--card-tint: var(--art0)">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art0)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></svg></div>
+      <h3>Truly unlimited zoom</h3>
+      <p>World coordinates are arbitrary-precision numbers, not floats. Zoom from a whole solar system down to a single atom — the canvas never runs out of resolution, and never ends.</p>
+    </div>
+    <div class="card glass rv" style="--card-tint: var(--art1)">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L10 17l-4 1 1-4Z"/><path d="M6 21c-1.7 0-3-1.3-3-3 1 0 2 .5 2 1.5"/></svg></div>
+      <h3>Real brushes, wet paint</h3>
+      <p>Eleven brush presets — pen to charcoal — plus oil, watercolor and acrylic media with genuine pigment mixing, bristle streaks and watercolour edges.</p>
+    </div>
+    <div class="card glass rv" style="--card-tint: var(--art2)">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19c3.9 0 7-5 7-9a7 7 0 1 0-14 0c0 4 3.1 9 7 9z" transform="rotate(45 12 12)"/><path d="M12 22v-3"/></svg></div>
+      <h3>Made for the pen</h3>
+      <p>Real stylus pressure and palm rejection where your device supports it — and a speed-based feel that keeps finger and mouse strokes alive everywhere else.</p>
+    </div>
+    <div class="card glass rv" style="--card-tint: var(--art3)">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>
+      <h3>Zoom stories</h3>
+      <p>Bookmark views on the dive rail, then let presenter mode fly the camera through them — or export the journey as an animated GIF or a self-contained flipbook.</p>
+    </div>
+    <div class="card glass rv" style="--card-tint: var(--art4)">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></div>
+      <h3>Layers, groups, grids</h3>
+      <p>Layers with opacity and tint dots, object grouping, editable colour palettes, square / dot / isometric guide grids, and a 500-step undo for every edit.</p>
+    </div>
+    <div class="card glass rv" style="--card-tint: var(--accent)">
+      <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+      <h3>One canvas, everywhere</h3>
+      <p>One tiny, fast Rust codebase runs native on Android today — with the same app coming to Mac and the web. Your drawings autosave to a compact portable file.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== GET ==================== -->
+<section id="get">
+  <div class="big-card glass rv">
+    <canvas id="get-canvas"></canvas>
+    <div class="inner">
+      <div class="sec-kicker">start diving</div>
+      <h2>Your canvas is waiting.<br>All of it.</h2>
+      <p class="sec-sub">Inzo is out now on Google Play — tuned for tablets and styluses, happy on phones too. Mac and Web are on the way.</p>
+      <div class="cta-row">
+        <a class="play-btn" href="https://play.google.com/store/apps/details?id=com.inzo.app">
+          <svg class="tri" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3.2v17.6c0 .8.9 1.3 1.6.9l4.6-2.7 3.4-2 6.9-4c.7-.4.7-1.4 0-1.8l-6.9-4-3.4-2L5.6 2.3c-.7-.4-1.6.1-1.6.9z"/></svg>
+          <span class="lines"><small>Get it on</small><b>Google Play</b></span>
+        </a>
+        <div class="soon"><span>Mac — soon</span><span>Web — soon</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="fbrand"><div class="puck"></div>Inzo — an endless canvas.</div>
+  <div><a href="dive.html">↓ try the scroll-dive version of this site</a></div>
+  <div>free of edges since 2026</div>
+</footer>
+
+<script>
+"use strict";
+/* ============================================================
+   Inzo marketing site — all interactivity in one small file.
+   Design language mirrors the app: glass panels floating over
+   one infinite canvas, a cyan night / coral day palette, and a
+   dive rail of bookmarks.
+   ============================================================ */
+
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const root = document.documentElement;
+
+/* ---------- palette bridge: canvases read the CSS variables ---------- */
+let C = {};
+function readPalette() {
+  const s = getComputedStyle(root);
+  const v = (n) => s.getPropertyValue(n).trim();
+  C = {
+    bg: v("--bg"), text: v("--text"), dim: v("--dim"),
+    accent: v("--accent"), accent2: v("--accent2"), ring: v("--ring"),
+    art: [v("--art0"), v("--art1"), v("--art2"), v("--art3"), v("--art4")],
+    dark: root.dataset.theme === "night",
+  };
+}
+readPalette();
+
+/* ---------- theme toggle ---------- */
+document.getElementById("themeToggle").addEventListener("click", () => {
+  root.dataset.theme = root.dataset.theme === "night" ? "day" : "night";
+  readPalette();
+  drawRings();
+  demo.render();
+});
+
+/* ---------- helpers ---------- */
+function fitCanvas(cv) {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const r = cv.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return false;
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return true;
+}
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+
+/* ---------- backdrop rings (the app's signature concentric backdrop) ---------- */
+const ringsCv = document.getElementById("rings");
+function drawRings() {
+  if (!fitCanvas(ringsCv)) return;
+  const ctx = ringsCv.getContext("2d");
+  const w = ringsCv.getBoundingClientRect().width, h = ringsCv.getBoundingClientRect().height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = C.ring;
+  ctx.lineWidth = 1;
+  const cx = w * 0.5, cy = h * 0.12;
+  for (let r = 90; r < Math.max(w, h) * 1.4; r *= 1.38) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+drawRings();
+addEventListener("resize", () => { drawRings(); demo.render(); });
+
+/* ============================================================
+   HERO — the endless dive. A self-similar doodle-scape drawn at
+   several scale octaves; the camera zooms in forever. Like the
+   app, we "renormalise": when zoom passes one octave we divide
+   it back down and bump the level index, so the numbers never
+   overflow no matter how long the page is open.
+   ============================================================ */
+const diveCv = document.getElementById("dive");
+const magline = document.getElementById("magline");
+const OCTAVE = 60;               // scale factor between levels
+let diveZoom = 1;                // current zoom within the octave
+let diveLevel = 0;               // how many octaves deep we are
+let totalLog10 = 0;              // lifetime magnification, as log10
+
+function drawMotif(ctx, level, alpha, t) {
+  // One "world" at a given depth: a seeded scatter of doodles in the art tints.
+  const rand = mulberry32(level * 7919 + 13);
+  ctx.globalAlpha = alpha;
+  // portal ring — the doorway to the next level
+  ctx.strokeStyle = C.dark ? "rgba(255,255,255,.25)" : "rgba(90,60,25,.22)";
+  ctx.lineWidth = 0.012;
+  ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); ctx.stroke();
+  // scattered strokes
+  for (let i = 0; i < 9; i++) {
+    const a0 = rand() * Math.PI * 2, r0 = 1.4 + rand() * 9;
+    const x = Math.cos(a0) * r0, y = Math.sin(a0) * r0;
+    const col = C.art[(level * 3 + i) % 5];
+    const kind = Math.floor(rand() * 3);
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.lineWidth = 0.05 + rand() * 0.06;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    if (kind === 0) {           // orbit ring with a dot
+      const rr = 0.4 + rand() * 0.9;
+      ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.stroke();
+      const pa = rand() * Math.PI * 2 + t * (0.1 + rand() * 0.3);
+      ctx.beginPath(); ctx.arc(x + Math.cos(pa) * rr, y + Math.sin(pa) * rr, 0.09, 0, Math.PI * 2); ctx.fill();
+    } else if (kind === 1) {    // hand-drawn squiggle
+      ctx.beginPath();
+      let px = x - 0.8, py = y;
+      ctx.moveTo(px, py);
+      for (let s = 1; s <= 5; s++) {
+        const nx = x - 0.8 + s * 0.32, ny = y + (rand() - 0.5) * 0.9;
+        ctx.quadraticCurveTo(px, py, (px + nx) / 2, (py + ny) / 2);
+        px = nx; py = ny;
+      }
+      ctx.stroke();
+    } else {                    // little star
+      ctx.beginPath();
+      const spikes = 5, R = 0.35 + rand() * 0.35;
+      for (let s = 0; s <= spikes * 2; s++) {
+        const ang = (s / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+        const rr = s % 2 === 0 ? R : R * 0.45;
+        const px2 = x + Math.cos(ang) * rr, py2 = y + Math.sin(ang) * rr;
+        s === 0 ? ctx.moveTo(px2, py2) : ctx.lineTo(px2, py2);
+      }
+      ctx.closePath(); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+let lastT = performance.now();
+function diveFrame(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.1);
+  lastT = now;
+  if (fitCanvas(diveCv)) {
+    const ctx = diveCv.getContext("2d");
+    const r = diveCv.getBoundingClientRect();
+    const w = r.width, h = r.height;
+    if (!reduceMotion) {
+      const rate = 1.6;                      // ×rate zoom per second
+      diveZoom *= Math.pow(rate, dt);
+      totalLog10 += Math.log10(rate) * dt;
+      if (diveZoom > OCTAVE) { diveZoom /= OCTAVE; diveLevel++; }   // renormalise
+    }
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    const base = Math.min(w, h) * 0.16;
+    const t = now / 1000;
+    for (let k = diveLevel - 1; k <= diveLevel + 3; k++) {
+      const s = base * diveZoom / Math.pow(OCTAVE, k - diveLevel);
+      if (s < 1.5 || s > Math.max(w, h) * 40) continue;
+      const big = s / Math.min(w, h);                       // fade out as it engulfs the screen
+      const alpha = Math.min(1, s / 26) * Math.max(0, 1 - (big - 1.2) / 6);
+      if (alpha <= 0.01) continue;
+      ctx.save();
+      ctx.scale(s, s);
+      ctx.rotate(k * 0.7 + t * 0.015);
+      drawMotif(ctx, k, alpha, t);
+      ctx.restore();
+    }
+    ctx.restore();
+    const exp = Math.floor(totalLog10);
+    const mant = Math.pow(10, totalLog10 - exp).toFixed(1);
+    magline.innerHTML = `magnification &nbsp;×${mant}·10<sup>${exp}</sup> &nbsp;— still going`;
+  }
+  requestAnimationFrame(diveFrame);
+}
+requestAnimationFrame(diveFrame);
+
+/* ============================================================
+   THE TINY INZO — a scaled-down, fully working slice of the app:
+   brush / pan / whole-stroke eraser, wheel & pinch zoom, camera
+   bookmarks with fly-to, undo — plus an autopilot that paints a
+   scene by itself until you take over.
+   ============================================================ */
+const demo = (() => {
+  const cv = document.getElementById("demo-canvas");
+  const ctx = cv.getContext("2d");
+  const zoomLabel = document.getElementById("demo-zoom-label");
+  const railEl = document.getElementById("demo-rail");
+  const chip = document.getElementById("autopilot-chip");
+  const chipLabel = document.getElementById("autopilot-label");
+
+  const st = {
+    strokes: [],                       // {pts:[{x,y}], w, color}  (world units)
+    undo: [],
+    cam: { x: 0, y: 0, scale: 1 },     // screen = (world - cam) * scale + center
+    tool: "brush",
+    color: null,                       // set from palette below
+    size: 6,
+    bookmarks: [],
+    live: null,                        // stroke being drawn
+    auto: true,
+  };
+  st.color = () => C.art[colorIdx];
+  let colorIdx = 0;
+
+  function center() { const r = cv.getBoundingClientRect(); return { w: r.width, h: r.height }; }
+  function toScreen(p) { const c = center(); return { x: (p.x - st.cam.x) * st.cam.scale + c.w / 2, y: (p.y - st.cam.y) * st.cam.scale + c.h / 2 }; }
+  function toWorld(p)  { const c = center(); return { x: (p.x - c.w / 2) / st.cam.scale + st.cam.x, y: (p.y - c.h / 2) / st.cam.scale + st.cam.y }; }
+
+  function render() {
+    if (!fitCanvas(cv)) return;
+    const c = center();
+    ctx.clearRect(0, 0, c.w, c.h);
+    // faint dot grid, spacing snapped to the current zoom octave
+    const step = 46 * Math.pow(2, -Math.round(Math.log2(st.cam.scale)));
+    const sStep = step * st.cam.scale;
+    if (sStep > 14) {
+      ctx.fillStyle = C.dark ? "rgba(255,255,255,.06)" : "rgba(90,60,25,.08)";
+      const w0 = toWorld({ x: 0, y: 0 });
+      const x0 = Math.floor(w0.x / step) * step, y0 = Math.floor(w0.y / step) * step;
+      for (let x = x0; ; x += step) {
+        const sx = toScreen({ x, y: 0 }).x; if (sx > c.w) break;
+        for (let y = y0; ; y += step) {
+          const sy = toScreen({ x: 0, y }).y; if (sy > c.h) break;
+          ctx.beginPath(); ctx.arc(sx, sy, 1, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    const all = st.live ? [...st.strokes, st.live] : st.strokes;
+    for (const s of all) drawStroke(s);
+    const z = st.cam.scale;
+    zoomLabel.textContent = z >= 1000 ? "×" + z.toExponential(0).replace("e+", "e") : "×" + (z >= 10 ? z.toFixed(0) : z.toFixed(1));
+  }
+
+  function drawStroke(s) {
+    const lw = s.w * st.cam.scale;
+    if (lw < 0.06 || s.pts.length === 0) return;
+    ctx.strokeStyle = s.color;
+    ctx.fillStyle = s.color;
+    ctx.lineWidth = lw;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const p0 = toScreen(s.pts[0]);
+    if (s.pts.length === 1) { ctx.beginPath(); ctx.arc(p0.x, p0.y, lw / 2, 0, Math.PI * 2); ctx.fill(); return; }
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    let prev = p0;
+    for (let i = 1; i < s.pts.length; i++) {
+      const p = toScreen(s.pts[i]);
+      ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + p.x) / 2, (prev.y + p.y) / 2);
+      prev = p;
+    }
+    ctx.lineTo(prev.x, prev.y);
+    ctx.stroke();
+  }
+
+  /* ----- edits ----- */
+  function addStroke(s) { st.strokes.push(s); st.undo.push({ op: "add" }); }
+  function eraseAt(world) {
+    const tol = 12 / st.cam.scale;
+    for (let i = st.strokes.length - 1; i >= 0; i--) {
+      const s = st.strokes[i];
+      const hit = s.pts.some(p => Math.hypot(p.x - world.x, p.y - world.y) < tol + s.w / 2);
+      if (hit) { st.undo.push({ op: "del", stroke: s, i }); st.strokes.splice(i, 1); render(); return; }
+    }
+  }
+  function undoOne() {
+    const u = st.undo.pop();
+    if (!u) return;
+    if (u.op === "add") st.strokes.pop();
+    else st.strokes.splice(u.i, 0, u.stroke);
+    render();
+  }
+
+  /* ----- camera ----- */
+  function zoomAt(screen, factor) {
+    const before = toWorld(screen);
+    st.cam.scale = Math.min(1e6, Math.max(1e-4, st.cam.scale * factor));
+    const after = toWorld(screen);
+    st.cam.x += before.x - after.x;
+    st.cam.y += before.y - after.y;
+    render();
+  }
+  let flying = null;
+  function flyTo(target, dur = 1100) {
+    const from = { ...st.cam };
+    const t0 = performance.now();
+    cancelAnimationFrame(flying);
+    (function step(now) {
+      const t = easeInOut(Math.min(1, (now - t0) / dur));
+      st.cam.x = lerp(from.x, target.x, t);
+      st.cam.y = lerp(from.y, target.y, t);
+      st.cam.scale = Math.exp(lerp(Math.log(from.scale), Math.log(target.scale), t));
+      render();
+      if (t < 1) flying = requestAnimationFrame(step);
+    })(t0);
+    return new Promise(res => setTimeout(res, dur + 30));
+  }
+
+  /* ----- bookmarks / dive rail ----- */
+  function addBookmark(color) {
+    const bm = { x: st.cam.x, y: st.cam.y, scale: st.cam.scale, color: color || st.color() };
+    st.bookmarks.push(bm);
+    const b = document.createElement("button");
+    b.className = "bm";
+    b.style.background = bm.color;
+    b.style.color = bm.color;
+    b.title = "dive to this view";
+    b.addEventListener("click", () => { stopAuto("flying to your bookmark"); flyTo(bm); });
+    railEl.appendChild(b);
+  }
+
+  /* ----- pointer input ----- */
+  const pointers = new Map();
+  let pinch = null;
+  cv.addEventListener("pointerdown", (e) => {
+    stopAuto();
+    cv.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+      st.live = null;
+      return;
+    }
+    const w = toWorld({ x: e.offsetX, y: e.offsetY });
+    if (st.tool === "brush") st.live = { pts: [w], w: st.size / st.cam.scale, color: st.color() };
+    else if (st.tool === "eraser") eraseAt(w);
+    render();
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    if (pointers.size === 2 && pinch) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      zoomAt(mid, d / pinch.d);
+      st.cam.x -= (mid.x - pinch.mid.x) / st.cam.scale;
+      st.cam.y -= (mid.y - pinch.mid.y) / st.cam.scale;
+      pinch = { d, mid };
+      render();
+      return;
+    }
+    if (st.tool === "brush" && st.live) {
+      const w = toWorld({ x: e.offsetX, y: e.offsetY });
+      const last = st.live.pts[st.live.pts.length - 1];
+      if (Math.hypot(w.x - last.x, w.y - last.y) * st.cam.scale > 1.5) { st.live.pts.push(w); render(); }
+    } else if (st.tool === "eraser") {
+      eraseAt(toWorld({ x: e.offsetX, y: e.offsetY }));
+    } else if (st.tool === "pan") {
+      st.cam.x -= (e.offsetX - prev.x) / st.cam.scale;
+      st.cam.y -= (e.offsetY - prev.y) / st.cam.scale;
+      render();
+    }
+  });
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (st.live) { addStroke(st.live); st.live = null; render(); }
+  }
+  cv.addEventListener("pointerup", endPointer);
+  cv.addEventListener("pointercancel", endPointer);
+  cv.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    stopAuto();
+    zoomAt({ x: e.offsetX, y: e.offsetY }, Math.exp(-e.deltaY * 0.0016));
+  }, { passive: false });
+
+  /* ----- toolbar wiring ----- */
+  document.querySelectorAll("#demo-dock button").forEach(b => {
+    b.addEventListener("click", () => {
+      stopAuto();
+      document.querySelectorAll("#demo-dock button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      st.tool = b.dataset.tool;
+      cv.style.cursor = st.tool === "pan" ? "grab" : "crosshair";
+    });
+  });
+  const swatchEl = document.getElementById("swatches");
+  ["--art0", "--art1", "--art2", "--art3", "--art4"].forEach((_, i) => {
+    const b = document.createElement("button");
+    b.style.background = `var(--art${i})`;
+    b.style.color = `var(--art${i})`;
+    if (i === 0) b.classList.add("on");
+    b.addEventListener("click", () => {
+      colorIdx = i;
+      swatchEl.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+    });
+    swatchEl.appendChild(b);
+  });
+  document.getElementById("size").addEventListener("input", (e) => { st.size = +e.target.value; });
+  document.getElementById("zoom-in").addEventListener("click", () => { stopAuto(); const c = center(); zoomAt({ x: c.w / 2, y: c.h / 2 }, 1.5); });
+  document.getElementById("zoom-out").addEventListener("click", () => { stopAuto(); const c = center(); zoomAt({ x: c.w / 2, y: c.h / 2 }, 1 / 1.5); });
+  document.getElementById("bookmark").addEventListener("click", () => { stopAuto(); addBookmark(); });
+  document.getElementById("undo").addEventListener("click", () => { stopAuto(); undoOne(); });
+  document.getElementById("clear").addEventListener("click", () => {
+    stopAuto();
+    st.strokes = []; st.undo = []; st.bookmarks = [];
+    railEl.querySelectorAll(".bm").forEach(b => b.remove());
+    st.cam = { x: 0, y: 0, scale: 1 };
+    render();
+  });
+
+  /* ----- autopilot: Inzo paints its own demo ----- */
+  let autoRun = 0;   // increments to cancel an in-flight script
+  function stopAuto(msg) {
+    if (!st.auto) return;
+    st.auto = false;
+    autoRun++;
+    chip.classList.add("paused");
+    chipLabel.textContent = msg || "your canvas now — click to replay the demo";
+  }
+  chip.addEventListener("click", () => {
+    if (st.auto) { stopAuto(); return; }
+    document.getElementById("clear").click();
+    st.auto = true;
+    chip.classList.remove("paused");
+    chipLabel.textContent = "painting a demo — click canvas to take over";
+    runScene(++autoRun);
+  });
+
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  async function animateStroke(run, pts, color, w, dur) {
+    const s = { pts: [], w, color };
+    st.live = s;
+    const t0 = performance.now();
+    while (st.auto && autoRun === run) {
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const n = Math.max(1, Math.floor(t * pts.length));
+      s.pts = pts.slice(0, n);
+      render();
+      if (t >= 1) break;
+      await new Promise(requestAnimationFrame);
+    }
+    if (!st.auto || autoRun !== run) { st.live = null; return; }
+    s.pts = pts;
+    st.live = null;
+    addStroke(s);
+    render();
+  }
+  function circlePts(cx, cy, r, wob = 0.04, n = 44, seed = 1) {
+    const rand = mulberry32(seed);
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const rr = r * (1 + (rand() - 0.5) * wob * 2);
+      pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr });
+    }
+    return pts;
+  }
+  function arcPts(cx, cy, r, a0, a1, n = 30) {
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (a1 - a0) * (i / n);
+      pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+    return pts;
+  }
+  function linePts(x0, y0, x1, y1, n = 14, wob = 0) {
+    const rand = mulberry32(9);
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      pts.push({ x: lerp(x0, x1, t) + (rand() - 0.5) * wob, y: lerp(y0, y1, t) + (rand() - 0.5) * wob });
+    }
+    return pts;
+  }
+
+  // A tiny hand-drawn stroke font (unit box: x 0..0.6, baseline y = 1),
+  // enough to write the demo's invitation.
+  const GLYPHS = {
+    d: (c) => [c(0.24, 0.76, 0.2), [[0.44, 0.15], [0.46, 1]]],
+    r: () => [[[0.12, 0.55], [0.1, 1]], [[0.1, 0.74], [0.24, 0.55], [0.46, 0.58]]],
+    a: (c) => [c(0.26, 0.77, 0.19), [[0.45, 0.56], [0.47, 1]]],
+    w: () => [[[0.02, 0.55], [0.16, 1], [0.28, 0.66], [0.4, 1], [0.56, 0.55]]],
+    o: (c) => [c(0.28, 0.77, 0.2)],
+    n: () => [[[0.1, 0.55], [0.1, 1]], [[0.1, 0.76], [0.2, 0.56], [0.38, 0.6], [0.44, 0.78], [0.44, 1]]],
+    m: () => [[[0.04, 0.55], [0.04, 1]], [[0.04, 0.72], [0.13, 0.55], [0.24, 0.62], [0.26, 1]], [[0.26, 0.72], [0.35, 0.55], [0.46, 0.62], [0.5, 1]]],
+    e: () => [[[0.1, 0.78], [0.44, 0.72], [0.38, 0.55], [0.18, 0.55], [0.06, 0.76], [0.16, 0.98], [0.46, 0.94]]],
+    "!": () => [[[0.28, 0.12], [0.26, 0.68]], [[0.26, 0.92], [0.27, 0.95]]],
+    " ": () => [],
+  };
+  async function writeText(run, text, x, y, size, color, w) {
+    const written = [];
+    for (const ch of text) {
+      const make = GLYPHS[ch];
+      if (make) {
+        const circ = (cx, cy, r) => circlePts(cx, cy, r, 0.08, 20, ch.charCodeAt(0));
+        for (const seg of make(circ)) {
+          if (!st.auto || autoRun !== run) return written;
+          const pts = seg.map(p => ({ x: x + p[0] * size, y: y + (p[1] - 1) * size }));
+          await animateStroke(run, pts, color, w, 90 + pts.length * 22);
+          written.push(st.strokes[st.strokes.length - 1]);
+        }
+      }
+      x += 0.62 * size;
+    }
+    return written;
+  }
+
+  async function runScene(run) {
+    const ok = () => st.auto && autoRun === run;
+    await wait(700); if (!ok()) return;
+    const A = C.art;
+    // 0 — an invitation, in Inzo's own handwriting… then tidy up with the eraser
+    const msg = "draw on me!";
+    const msgSize = 52;
+    const written = await writeText(run, msg, -(msg.length * 0.62 * msgSize) / 2, 20, msgSize, A[0], 4);
+    if (!ok()) return;
+    await wait(1100); if (!ok()) return;
+    for (const s of written) {
+      if (!ok()) return;
+      const i = st.strokes.indexOf(s);
+      if (i >= 0) { st.strokes.splice(i, 1); render(); await wait(55); }
+    }
+    if (!ok()) return;
+    await wait(350); if (!ok()) return;
+    // 1 — a sun with rays
+    await animateStroke(run, circlePts(0, -10, 46, 0.05, 40, 3), A[3], 7, 900); if (!ok()) return;
+    for (let i = 0; i < 8 && ok(); i++) {
+      const a = (i / 8) * Math.PI * 2;
+      await animateStroke(run, linePts(Math.cos(a) * 60, -10 + Math.sin(a) * 60, Math.cos(a) * 78, -10 + Math.sin(a) * 78, 6), A[3], 4, 160);
+    }
+    if (!ok()) return;
+    // 2 — an orbit and a little planet
+    await animateStroke(run, arcPts(0, -10, 150, -0.4, Math.PI * 1.75, 60), A[0], 2.5, 1100); if (!ok()) return;
+    const px = Math.cos(0.6) * 150, py = -10 + Math.sin(0.6) * 150;
+    await animateStroke(run, circlePts(px, py, 16, 0.07, 30, 5), A[2], 5, 600); if (!ok()) return;
+    addBookmark(A[3]);
+    await wait(500); if (!ok()) return;
+    // 3 — dive ×24 into the planet
+    await flyTo({ x: px, y: py, scale: 24 }, 1700); if (!ok()) return;
+    await wait(300); if (!ok()) return;
+    // 4 — draw a tiny world on its surface
+    await animateStroke(run, arcPts(px - 6, py + 2, 4, Math.PI, Math.PI * 2, 20), A[1], 0.5, 500); if (!ok()) return; // hill
+    await animateStroke(run, linePts(px + 2, py + 3, px + 2, py - 3, 8, 0.2), A[4], 0.35, 400); if (!ok()) return;    // stem
+    for (let i = 0; i < 5 && ok(); i++) {                                                                             // petals
+      const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+      await animateStroke(run, circlePts(px + 2 + Math.cos(a) * 1.5, py - 4.2 + Math.sin(a) * 1.5, 0.9, 0.1, 16, i + 7), A[1], 0.4, 220);
+    }
+    if (!ok()) return;
+    await animateStroke(run, circlePts(px + 2, py - 4.2, 0.7, 0.1, 16, 20), A[3], 0.4, 220); if (!ok()) return;
+    addBookmark(A[1]);
+    await wait(500); if (!ok()) return;
+    // 5 — dive again, ×40 deeper, into the flower's heart: an atom
+    const ax = px + 2, ay = py - 4.2;
+    await flyTo({ x: ax, y: ay, scale: 960 }, 2000); if (!ok()) return;
+    await wait(300); if (!ok()) return;
+    await animateStroke(run, circlePts(ax, ay, 0.035, 0.1, 20, 31), A[0], 0.02, 350); if (!ok()) return;   // nucleus
+    for (let i = 0; i < 3 && ok(); i++) {
+      const rot = i * (Math.PI / 3);
+      const ring = [];
+      for (let s2 = 0; s2 <= 40; s2++) {
+        const a = (s2 / 40) * Math.PI * 2;
+        const ex = Math.cos(a) * 0.28, ey = Math.sin(a) * 0.1;
+        ring.push({ x: ax + ex * Math.cos(rot) - ey * Math.sin(rot), y: ay + ex * Math.sin(rot) + ey * Math.cos(rot) });
+      }
+      await animateStroke(run, ring, A[4], 0.012, 550);
+    }
+    if (!ok()) return;
+    addBookmark(A[4]);
+    await wait(900); if (!ok()) return;
+    // 6 — presenter mode: fly the bookmarks forever
+    let i = 0;
+    while (ok()) {
+      const bm = st.bookmarks[i % st.bookmarks.length];
+      if (!bm) break;
+      await flyTo(bm, 2100); if (!ok()) return;
+      await wait(1400);
+      i++;
+    }
+  }
+
+  // start the show once the demo scrolls into view
+  let started = false;
+  new IntersectionObserver((entries) => {
+    if (entries.some(e => e.isIntersecting) && !started) {
+      started = true;
+      render();
+      if (!reduceMotion) runScene(autoRun);
+      else stopAuto("grab a brush and draw");
+    }
+  }, { threshold: 0.35 }).observe(document.getElementById("demo-frame"));
+
+  render();
+  return { render };
+})();
+
+/* ---------- CTA card doodle ---------- */
+(function getDoodle() {
+  const cv = document.getElementById("get-canvas");
+  function draw() {
+    if (!fitCanvas(cv)) return;
+    const ctx = cv.getContext("2d");
+    const r = cv.getBoundingClientRect();
+    ctx.clearRect(0, 0, r.width, r.height);
+    ctx.strokeStyle = C.ring; ctx.lineWidth = 1;
+    for (let rr = 40; rr < r.width; rr *= 1.45) {
+      ctx.beginPath(); ctx.arc(r.width * 0.9, r.height * 0.1, rr, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(r.width * 0.08, r.height * 0.95, rr * 0.8, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  draw();
+  addEventListener("resize", draw);
+  document.getElementById("themeToggle").addEventListener("click", draw);
+})();
+
+/* ---------- dive-rail nav + reveal animations ---------- */
+const railLinks = [...document.querySelectorAll("#rail a")];
+const secObs = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) railLinks.forEach(a => a.classList.toggle("active", a.hash === "#" + e.target.id));
+  }
+}, { rootMargin: "-45% 0px -45% 0px" });
+document.querySelectorAll("section[id]").forEach(s => secObs.observe(s));
+
+const revObs = new IntersectionObserver((entries) => {
+  for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); revObs.unobserve(e.target); }
+}, { threshold: 0.12 });
+document.querySelectorAll(".rv").forEach(el => revObs.observe(el));
+</script>
+</body>
+</html>

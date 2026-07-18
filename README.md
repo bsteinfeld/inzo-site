@@ -3,7 +3,7 @@
 The marketing website for **[Inzo](https://github.com/bsteinfeld/inzo)** — an
 endless canvas you can dive into, forever.
 
-**Live site:** https://bsteinfeld.github.io/inzo-site/
+**Live site:** https://inzo.ink
 
 ![Inzo's editor — the Koi Pond example at night](site/assets/app-koi-night.webp)
 

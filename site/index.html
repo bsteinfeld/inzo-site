@@ -281,6 +281,21 @@
     margin-top: 14px; text-align: center;
     font-family: var(--font-mono); font-size: 12px; color: var(--dim);
   }
+  #zoom-limit {
+    position: absolute; z-index: 7; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(.94);
+    text-align: center; padding: 18px 26px; border-radius: 18px;
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: var(--text);
+    opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none;
+    max-width: min(340px, 86%);
+  }
+  #zoom-limit.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #zoom-limit.show a { pointer-events: auto; }
+  #zoom-limit em { color: var(--accent); font-style: normal; }
+  #zoom-limit a {
+    display: inline-block; margin-top: 10px; padding: 8px 16px; border-radius: 999px;
+    background: linear-gradient(120deg, var(--accent), var(--accent2));
+    color: var(--accent-ink); font-weight: 700; font-size: 12px;
+  }
 
   /* ---- real screenshots ---- */
   .shot { margin: 0; }
@@ -337,8 +352,43 @@
   @media (max-width: 720px) {
     #rail { display: none; }
     .chrome-right .play-mini { display: none; }
+    header { padding: 12px 16px; }
+    .brand span { font-size: 20px; }
+    .puck { width: 26px; height: 26px; }
+    section { padding: 56px 18px; }
+    .hero-inner { padding: 96px 18px 70px; }
+    .hero-kicker { font-size: 10px; letter-spacing: .1em; }
+    #magline { font-size: 12px; }
+    .cta-row { gap: 10px; }
+    .soon span { padding: 8px 11px; font-size: 11px; }
+
+    #demo-frame { height: 68vh; min-height: 360px; border-radius: 20px; }
+    #autopilot-chip {
+      top: 10px; font-size: 10px; padding: 6px 11px; gap: 7px;
+      max-width: calc(100% - 116px);
+    }
+    #autopilot-chip #autopilot-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #demo-dock { left: 8px; padding: 6px; gap: 4px; border-radius: 15px; }
+    #demo-dock button { width: 36px; height: 36px; border-radius: 11px; }
+    #demo-dock svg { width: 18px; height: 18px; }
+    #demo-undo { left: auto; right: 8px; top: 8px; bottom: auto; padding: 4px; border-radius: 14px; }
+    #demo-undo .icon-btn { width: 34px; height: 34px; }
+    #demo-options {
+      bottom: 8px; padding: 7px 10px; gap: 8px;
+      max-width: calc(100% - 16px); border-radius: 15px;
+    }
+    .swatches { gap: 6px; }
+    .swatches button { width: 21px; height: 21px; }
+    #size { width: 62px; }
+    #demo-zoom-label { min-width: 46px; font-size: 11px; }
+    .icon-btn { width: 34px; height: 34px; }
+    #demo-rail { right: 8px; padding: 9px 6px; }
     #demo-rail .hintlab { display: none; }
-    #demo-options { gap: 8px; }
+    .demo-caption { font-size: 11px; }
+
+    .card { padding: 20px; }
+    #get .big-card { border-radius: 22px; }
+    footer { justify-content: center; text-align: center; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -403,6 +453,11 @@
     <canvas id="demo-canvas"></canvas>
 
     <button id="autopilot-chip"><span class="live"></span><span id="autopilot-label">painting a demo — click canvas to take over</span></button>
+
+    <div id="zoom-limit" class="glass" hidden>
+      <span>×1&thinsp;000 is where this toy stops.<br>The real Inzo <em>never</em> does.</span>
+      <a href="https://play.google.com/store/apps/details?id=com.inzo.app">Get the full infinite zoom →</a>
+    </div>
 
     <div id="demo-dock" class="demo-panel glass" role="toolbar" aria-label="Tools">
       <button data-tool="brush" class="on" title="Brush (B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L10 17l-4 1 1-4Z"/><path d="M6 21c-1.7 0-3-1.3-3-3 1 0 2 .5 2 1.5"/></svg></button>
@@ -753,6 +808,17 @@ const demo = (() => {
   function drawStroke(s) {
     const lw = s.w * st.cam.scale;
     if (lw < 0.06 || s.pts.length === 0) return;
+    // cull strokes fully outside the viewport — this is what keeps deep
+    // zooms fast, since off-screen strokes get enormous screen coordinates
+    const bb = s.bb || bboxOf(s);
+    {
+      const c = center();
+      const a = toScreen({ x: bb.x0, y: bb.y0 });
+      const b = toScreen({ x: bb.x1, y: bb.y1 });
+      const pad = lw / 2 + 4;
+      if (Math.max(a.x, b.x) < -pad || Math.min(a.x, b.x) > c.w + pad ||
+          Math.max(a.y, b.y) < -pad || Math.min(a.y, b.y) > c.h + pad) return;
+    }
     ctx.strokeStyle = s.color;
     ctx.fillStyle = s.color;
     ctx.lineWidth = lw;
@@ -772,7 +838,15 @@ const demo = (() => {
   }
 
   /* ----- edits ----- */
-  function addStroke(s) { st.strokes.push(s); st.undo.push({ op: "add" }); }
+  function bboxOf(s) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of s.pts) {
+      if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x;
+      if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+    }
+    return { x0, y0, x1, y1 };
+  }
+  function addStroke(s) { s.bb = bboxOf(s); st.strokes.push(s); st.undo.push({ op: "add" }); }
   function eraseAt(world) {
     const tol = 12 / st.cam.scale;
     for (let i = st.strokes.length - 1; i >= 0; i--) {
@@ -790,9 +864,25 @@ const demo = (() => {
   }
 
   /* ----- camera ----- */
+  // The toy's zoom range. The real app has none — hitting this wall is the
+  // demo's cue to point at the real thing.
+  const MAXZ = 1000, MINZ = 0.02;
+  const limitEl = document.getElementById("zoom-limit");
+  let limitTimer = 0;
+  function showLimit() {
+    limitEl.hidden = false;
+    requestAnimationFrame(() => limitEl.classList.add("show"));
+    clearTimeout(limitTimer);
+    limitTimer = setTimeout(() => {
+      limitEl.classList.remove("show");
+      setTimeout(() => { limitEl.hidden = true; }, 350);
+    }, 4500);
+  }
   function zoomAt(screen, factor) {
     const before = toWorld(screen);
-    st.cam.scale = Math.min(1e6, Math.max(1e-4, st.cam.scale * factor));
+    const wanted = st.cam.scale * factor;
+    st.cam.scale = Math.min(MAXZ, Math.max(MINZ, wanted));
+    if (wanted > MAXZ || wanted < MINZ) showLimit();
     const after = toWorld(screen);
     st.cam.x += before.x - after.x;
     st.cam.y += before.y - after.y;
@@ -1005,7 +1095,8 @@ const demo = (() => {
     for (const ch of text) {
       const make = GLYPHS[ch];
       if (make) {
-        const circ = (cx, cy, r) => circlePts(cx, cy, r, 0.08, 20, ch.charCodeAt(0));
+        // segments are [x,y] pairs; circle helpers must return the same shape
+        const circ = (cx, cy, r) => circlePts(cx, cy, r, 0.08, 20, ch.charCodeAt(0)).map(q => [q.x, q.y]);
         for (const seg of make(circ)) {
           if (!st.auto || autoRun !== run) return written;
           const pts = seg.map(p => ({ x: x + p[0] * size, y: y + (p[1] - 1) * size }));

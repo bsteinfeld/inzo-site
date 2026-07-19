@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.bsteinfeld.inzo.app",
+      "sha256_cert_fingerprints": [
+        "02:12:8F:A0:CE:98:9B:3B:85:90:40:31:BE:B1:E6:98:66:A1:0D:B5:9A:C2:6F:AF:00:E1:D4:42:30:2C:16:9D"
+      ]
+    }
+  }
+]

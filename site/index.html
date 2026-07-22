@@ -5,10 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Inzo — an endless canvas you can dive into, forever</title>
 <meta name="description" content="Inzo is an infinite drawing space with no zoom limit. Paint a solar system, dive to a single atom, and never hit an edge. Now on Google Play — Mac & Web coming soon.">
+<!-- TODO(bradley): once the final domain is settled, make og:image absolute and
+     add og:url + <link rel="canonical"> — many scrapers ignore relative og:image. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Inzo — an endless canvas you can dive into, forever">
+<meta property="og:description" content="An infinite drawing space with no zoom limit. Paint a solar system, dive to a single atom, and never hit an edge. Now on Google Play.">
+<meta property="og:image" content="assets/app-koi-night.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Inzo — an endless canvas you can dive into, forever">
+<meta name="twitter:description" content="An infinite drawing space with no zoom limit. Paint a solar system, dive to a single atom, and never hit an edge. Now on Google Play.">
+<meta name="twitter:image" content="assets/app-koi-night.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25'%3E%3Cstop offset='0%25' stop-color='%23B4F1FF'/%3E%3Cstop offset='55%25' stop-color='%2345E4FF'/%3E%3Cstop offset='100%25' stop-color='%237CC4FF'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)'/%3E%3C/svg%3E">
+<!-- Safari doesn't render SVG favicons, so ship a PNG too (+ home-screen icon). -->
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <style>
   :root[data-theme="night"] {
     --bg: #0a0c15;           --bg-top: #18203a;
@@ -18,6 +31,7 @@
     --text: #EAF0FF;         --dim: #8B93B4;
     --accent: #45E4FF;       --accent2: #7CC4FF;  --accent-hi: #B4F1FF;
     --accent-soft: rgba(69,228,255,.14);          --accent-ink: #06131A;
+    --accent-text: var(--accent);
     --ring: rgba(255,255,255,.055);
     --art0:#45E4FF; --art1:#FF7AC6; --art2:#7CFFC4; --art3:#FFE07A; --art4:#A78BFA;
     --shadow: 0 14px 34px rgba(0,0,0,.55);
@@ -31,9 +45,10 @@
     --panel: rgba(255,255,255,.86); --panel-solid: #FFFFFF;
     --border: #F0E8DC;
     --chip: #F7F1E8;         --soft: #F3EDE3;
-    --text: #2B2622;         --dim: #8B8175;
+    --text: #2B2622;         --dim: #6E645A;
     --accent: #FF6B57;       --accent2: #FF9F45;  --accent-hi: #FF8A6B;
     --accent-soft: #FFEDE8;                       --accent-ink: #FFFFFF;
+    --accent-text: #C93F2B;  /* darker accent for reading text — AA on bg & cards */
     --ring: rgba(160,120,70,.10);
     --art0:#FF6B57; --art1:#34D6A8; --art2:#4DA8FF; --art3:#FFC13B; --art4:#9B6BFF;
     --shadow: 0 14px 34px rgba(90,60,25,.18);
@@ -54,7 +69,7 @@
     transition: background .5s, color .5s;
   }
   ::selection { background: var(--accent); color: var(--accent-ink); }
-  a { color: var(--accent); text-decoration: none; }
+  a { color: var(--accent-text); text-decoration: none; }
   h1,h2,h3 { font-family: var(--font-display); font-weight: 600; line-height: 1.12; }
   button { font-family: inherit; }
 
@@ -73,6 +88,15 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 16px 26px;
   }
+  /* glass slides in behind the chrome once the page scrolls, so the wordmark
+     never collides with the content passing underneath it */
+  header::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    opacity: 0; transition: opacity .3s;
+  }
+  header.scrolled::before { opacity: 1; }
   .brand { display: flex; align-items: center; gap: 11px; }
   .puck {
     width: 32px; height: 32px; border-radius: 50%;
@@ -169,7 +193,7 @@
   }
   .hero-sub { font-size: clamp(16px, 2.2vw, 20px); color: var(--dim); max-width: 620px; margin: 0 auto 14px; }
   #magline {
-    font-family: var(--font-mono); font-size: 14px; color: var(--accent);
+    font-family: var(--font-mono); font-size: 14px; color: var(--accent-text);
     margin-bottom: 34px; min-height: 22px; text-shadow: 0 0 18px var(--accent-soft);
   }
   #magline sup { font-size: 10px; }
@@ -202,7 +226,7 @@
 
   /* ---- sections ---- */
   section { position: relative; padding: 90px 24px; max-width: 1080px; margin: 0 auto; }
-  .sec-kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .sec-kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-text); margin-bottom: 12px; }
   h2 { font-size: clamp(28px, 4.4vw, 44px); letter-spacing: -.015em; margin-bottom: 14px; }
   .sec-sub { color: var(--dim); max-width: 640px; margin-bottom: 40px; font-size: 17px; }
 
@@ -216,7 +240,9 @@
     height: min(66vh, 560px); min-height: 420px;
     background: var(--bg); border: 1px solid var(--border); box-shadow: var(--shadow);
   }
-  #demo-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  /* pan-y until the user takes over, so a phone swipe scrolls the page instead
+     of drawing — the JS flips it to none once the demo is armed */
+  #demo-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y pinch-zoom; cursor: crosshair; }
   .demo-panel { position: absolute; z-index: 5; border-radius: 18px; }
 
   #demo-dock {
@@ -290,7 +316,7 @@
   }
   #zoom-limit.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   #zoom-limit.show a { pointer-events: auto; }
-  #zoom-limit em { color: var(--accent); font-style: normal; }
+  #zoom-limit em { color: var(--accent-text); font-style: normal; }
   #zoom-limit a {
     display: inline-block; margin-top: 10px; padding: 8px 16px; border-radius: 999px;
     background: linear-gradient(120deg, var(--accent), var(--accent2));
@@ -417,11 +443,11 @@
 </header>
 
 <nav id="rail" class="glass" aria-label="Sections">
-  <a href="#home" data-label="dive in"></a>
-  <a href="#try" data-label="try it"></a>
-  <a href="#real" data-label="the real thing"></a>
-  <a href="#features" data-label="features"></a>
-  <a href="#get" data-label="get inzo"></a>
+  <a href="#home" data-label="dive in" aria-label="Dive in"></a>
+  <a href="#try" data-label="try it" aria-label="Try it"></a>
+  <a href="#real" data-label="the real thing" aria-label="The real thing"></a>
+  <a href="#features" data-label="features" aria-label="Features"></a>
+  <a href="#get" data-label="get inzo" aria-label="Get Inzo"></a>
 </nav>
 
 <!-- ==================== HERO ==================== -->
@@ -445,17 +471,17 @@
 
 <!-- ==================== DEMO ==================== -->
 <section id="try">
-  <div class="sec-kicker rv">display demo</div>
+  <div class="sec-kicker rv">live demo</div>
   <h2 class="rv">Try a tiny Inzo</h2>
   <p class="sec-sub rv">A <em>very</em> stripped-down Inzo, right in the page — it paints its own little demo until you take over. Draw, scroll to zoom, drop a bookmark, dive back. The real app goes much, <em>much</em> deeper.</p>
 
   <div id="demo-frame" class="rv">
     <canvas id="demo-canvas"></canvas>
 
-    <button id="autopilot-chip"><span class="live"></span><span id="autopilot-label">painting a demo — click canvas to take over</span></button>
+    <button id="autopilot-chip"><span class="live"></span><span id="autopilot-label">painting a demo — tap to take over</span></button>
 
     <div id="zoom-limit" class="glass" hidden>
-      <span>×1&thinsp;000 is where this toy stops.<br>The real Inzo <em>never</em> does.</span>
+      <span id="zoom-limit-msg">×1&thinsp;000 is where this toy stops.<br>The real Inzo <em>never</em> does.</span>
       <a href="https://play.google.com/store/apps/details?id=com.bsteinfeld.inzo.app">Get the full infinite zoom →</a>
     </div>
 
@@ -524,7 +550,7 @@
     <div class="card glass rv" style="--card-tint: var(--art1)">
       <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L10 17l-4 1 1-4Z"/><path d="M6 21c-1.7 0-3-1.3-3-3 1 0 2 .5 2 1.5"/></svg></div>
       <h3>Real brushes, wet paint</h3>
-      <p>Eleven brush presets — pen to charcoal — plus oil, watercolor and acrylic media with genuine pigment mixing, bristle streaks and watercolour edges.</p>
+      <p>Eleven brush presets — pen to charcoal — plus oil, watercolour and acrylic media with genuine pigment mixing, bristle streaks and watercolour edges.</p>
     </div>
     <div class="card glass rv" style="--card-tint: var(--art2)">
       <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19c3.9 0 7-5 7-9a7 7 0 1 0-14 0c0 4 3.1 9 7 9z" transform="rotate(45 12 12)"/><path d="M12 22v-3"/></svg></div>
@@ -539,7 +565,7 @@
     <div class="card glass rv" style="--card-tint: var(--art4)">
       <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--art4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></div>
       <h3>Layers, groups, grids</h3>
-      <p>Layers with opacity and tint dots, object grouping, editable colour palettes, square / dot / isometric guide grids, and a 500-step undo for every edit.</p>
+      <p>Layers with opacity and tint dots, object grouping, editable colour palettes, square / dot / isometric guide grids, and a 250-step undo for every edit.</p>
     </div>
     <div class="card glass rv" style="--card-tint: var(--accent)">
       <div class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
@@ -570,7 +596,7 @@
 
 <footer>
   <div class="fbrand"><div class="puck"></div>Inzo — an endless canvas.</div>
-  <div><a href="dive.html">↓ try the scroll-dive version of this site</a></div>
+  <div><a href="dive.html">↓ try the scroll-dive version of this site</a> · <a href="help.html">help &amp; faq</a> · <a href="privacy.html">privacy</a></div>
   <div>free of edges since 2026</div>
 </footer>
 
@@ -606,6 +632,7 @@ document.getElementById("themeToggle").addEventListener("click", () => {
   readPalette();
   drawRings();
   demo.render();
+  queueHero();   // repaint the hero once even when its loop is paused
 });
 
 /* ---------- helpers ---------- */
@@ -645,7 +672,7 @@ function drawRings() {
   }
 }
 drawRings();
-addEventListener("resize", () => { drawRings(); demo.render(); });
+addEventListener("resize", () => { drawRings(); demo.render(); queueHero(); });
 
 /* ============================================================
    HERO — the endless dive. A self-similar doodle-scape drawn at
@@ -710,6 +737,7 @@ function drawMotif(ctx, level, alpha, t) {
 
 let lastT = performance.now();
 function diveFrame(now) {
+  heroQueued = false;
   const dt = Math.min((now - lastT) / 1000, 0.1);
   lastT = now;
   if (fitCanvas(diveCv)) {
@@ -726,7 +754,7 @@ function diveFrame(now) {
     ctx.save();
     ctx.translate(w / 2, h / 2);
     const base = Math.min(w, h) * 0.16;
-    const t = now / 1000;
+    const t = reduceMotion ? 0 : now / 1000;   // frozen t = a genuinely still frame
     for (let k = diveLevel - 1; k <= diveLevel + 3; k++) {
       const s = base * diveZoom / Math.pow(OCTAVE, k - diveLevel);
       if (s < 1.5 || s > Math.max(w, h) * 40) continue;
@@ -744,9 +772,21 @@ function diveFrame(now) {
     const mant = Math.pow(10, totalLog10 - exp).toFixed(1);
     magline.innerHTML = `magnification &nbsp;×${mant}·10<sup>${exp}</sup> &nbsp;— still going`;
   }
+  if (heroVisible && !reduceMotion) queueHero();
+}
+// The dive repaints every frame, so don't run it forever: pause the loop while
+// the hero is scrolled off-screen (real battery on tablets), and under
+// prefers-reduced-motion draw single still frames on demand instead of looping.
+let heroQueued = false, heroVisible = false;
+function queueHero() {
+  if (heroQueued) return;
+  heroQueued = true;
   requestAnimationFrame(diveFrame);
 }
-requestAnimationFrame(diveFrame);
+new IntersectionObserver((entries) => {
+  heroVisible = entries[0].isIntersecting;
+  if (heroVisible) { lastT = performance.now(); queueHero(); }
+}).observe(diveCv);
 
 /* ============================================================
    THE TINY INZO — a scaled-down, fully working slice of the app:
@@ -802,7 +842,7 @@ const demo = (() => {
     const all = st.live ? [...st.strokes, st.live] : st.strokes;
     for (const s of all) drawStroke(s);
     const z = st.cam.scale;
-    zoomLabel.textContent = z >= 1000 ? "×" + z.toExponential(0).replace("e+", "e") : "×" + (z >= 10 ? z.toFixed(0) : z.toFixed(1));
+    zoomLabel.textContent = z >= 1000 ? "×" + z.toExponential(0).replace("e+", "e") : "×" + (z >= 10 ? z.toFixed(0) : z >= 1 ? z.toFixed(1) : z.toFixed(2));
   }
 
   function drawStroke(s) {
@@ -868,8 +908,12 @@ const demo = (() => {
   // demo's cue to point at the real thing.
   const MAXZ = 1000, MINZ = 0.02;
   const limitEl = document.getElementById("zoom-limit");
+  const limitMsg = document.getElementById("zoom-limit-msg");
   let limitTimer = 0;
-  function showLimit() {
+  function showLimit(zoomingIn) {
+    limitMsg.innerHTML = zoomingIn
+      ? "×1&thinsp;000 is where this toy stops.<br>The real Inzo <em>never</em> does."
+      : "This toy stops zooming out here.<br>The real Inzo <em>never</em> does.";
     limitEl.hidden = false;
     requestAnimationFrame(() => limitEl.classList.add("show"));
     clearTimeout(limitTimer);
@@ -882,7 +926,8 @@ const demo = (() => {
     const before = toWorld(screen);
     const wanted = st.cam.scale * factor;
     st.cam.scale = Math.min(MAXZ, Math.max(MINZ, wanted));
-    if (wanted > MAXZ || wanted < MINZ) showLimit();
+    if (wanted > MAXZ) showLimit(true);
+    else if (wanted < MINZ) showLimit(false);
     const after = toWorld(screen);
     st.cam.x += before.x - after.x;
     st.cam.y += before.y - after.y;
@@ -913,14 +958,32 @@ const demo = (() => {
     b.style.background = bm.color;
     b.style.color = bm.color;
     b.title = "dive to this view";
-    b.addEventListener("click", () => { stopAuto("flying to your bookmark"); flyTo(bm); });
+    b.setAttribute("aria-label", `Dive to bookmark ${st.bookmarks.length}`);
+    b.addEventListener("click", () => { armDemo(); stopAuto("flying to your bookmark"); flyTo(bm); });
     railEl.appendChild(b);
+  }
+
+  /* ----- take-over gate ----- */
+  // Until the user deliberately takes over, touch swipes scroll the page
+  // (touch-action: pan-y pinch-zoom in the CSS) and the wheel scrolls past
+  // the demo — a 68vh frame that eats every gesture is a scroll trap on phones.
+  let armed = false;
+  function armDemo() {
+    if (armed) return;
+    armed = true;
+    cv.style.touchAction = "none";
   }
 
   /* ----- pointer input ----- */
   const pointers = new Map();
   let pinch = null;
+  let tapProbe = null;   // unarmed touch: decide tap-to-take-over vs page scroll
   cv.addEventListener("pointerdown", (e) => {
+    if (!armed && e.pointerType === "touch") {
+      tapProbe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      return;   // let the browser scroll; a clean tap arms in endPointer
+    }
+    armDemo();
     stopAuto();
     cv.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
@@ -963,6 +1026,12 @@ const demo = (() => {
     }
   });
   function endPointer(e) {
+    if (tapProbe && tapProbe.id === e.pointerId) {
+      const moved = Math.hypot(e.clientX - tapProbe.x, e.clientY - tapProbe.y);
+      tapProbe = null;
+      if (e.type === "pointerup" && moved < 8) { armDemo(); stopAuto(); }
+      return;
+    }
     pointers.delete(e.pointerId);
     if (pointers.size < 2) pinch = null;
     if (st.live) { addStroke(st.live); st.live = null; render(); }
@@ -970,6 +1039,7 @@ const demo = (() => {
   cv.addEventListener("pointerup", endPointer);
   cv.addEventListener("pointercancel", endPointer);
   cv.addEventListener("wheel", (e) => {
+    if (!armed) return;   // unarmed: the page keeps scrolling past the demo
     e.preventDefault();
     stopAuto();
     zoomAt({ x: e.offsetX, y: e.offsetY }, Math.exp(-e.deltaY * 0.0016));
@@ -978,6 +1048,7 @@ const demo = (() => {
   /* ----- toolbar wiring ----- */
   document.querySelectorAll("#demo-dock button").forEach(b => {
     b.addEventListener("click", () => {
+      armDemo();
       stopAuto();
       document.querySelectorAll("#demo-dock button").forEach(x => x.classList.remove("on"));
       b.classList.add("on");
@@ -988,6 +1059,7 @@ const demo = (() => {
   const swatchEl = document.getElementById("swatches");
   ["--art0", "--art1", "--art2", "--art3", "--art4"].forEach((_, i) => {
     const b = document.createElement("button");
+    b.setAttribute("aria-label", `Colour ${i + 1}`);
     b.style.background = `var(--art${i})`;
     b.style.color = `var(--art${i})`;
     if (i === 0) b.classList.add("on");
@@ -999,11 +1071,12 @@ const demo = (() => {
     swatchEl.appendChild(b);
   });
   document.getElementById("size").addEventListener("input", (e) => { st.size = +e.target.value; });
-  document.getElementById("zoom-in").addEventListener("click", () => { stopAuto(); const c = center(); zoomAt({ x: c.w / 2, y: c.h / 2 }, 1.5); });
-  document.getElementById("zoom-out").addEventListener("click", () => { stopAuto(); const c = center(); zoomAt({ x: c.w / 2, y: c.h / 2 }, 1 / 1.5); });
-  document.getElementById("bookmark").addEventListener("click", () => { stopAuto(); addBookmark(); });
-  document.getElementById("undo").addEventListener("click", () => { stopAuto(); undoOne(); });
+  document.getElementById("zoom-in").addEventListener("click", () => { armDemo(); stopAuto(); const c = center(); zoomAt({ x: c.w / 2, y: c.h / 2 }, 1.5); });
+  document.getElementById("zoom-out").addEventListener("click", () => { armDemo(); stopAuto(); const c = center(); zoomAt({ x: c.w / 2, y: c.h / 2 }, 1 / 1.5); });
+  document.getElementById("bookmark").addEventListener("click", () => { armDemo(); stopAuto(); addBookmark(); });
+  document.getElementById("undo").addEventListener("click", () => { armDemo(); stopAuto(); undoOne(); });
   document.getElementById("clear").addEventListener("click", () => {
+    armDemo();
     stopAuto();
     st.strokes = []; st.undo = []; st.bookmarks = [];
     railEl.querySelectorAll(".bm").forEach(b => b.remove());
@@ -1018,14 +1091,15 @@ const demo = (() => {
     st.auto = false;
     autoRun++;
     chip.classList.add("paused");
-    chipLabel.textContent = msg || "your canvas now — click to replay the demo";
+    chipLabel.textContent = msg || "your canvas now — tap here to replay the demo";
   }
   chip.addEventListener("click", () => {
+    armDemo();
     if (st.auto) { stopAuto(); return; }
     document.getElementById("clear").click();
     st.auto = true;
     chip.classList.remove("paused");
-    chipLabel.textContent = "painting a demo — click canvas to take over";
+    chipLabel.textContent = "painting a demo — tap to take over";
     runScene(++autoRun);
   });
 
@@ -1215,6 +1289,12 @@ const demo = (() => {
   addEventListener("resize", draw);
   document.getElementById("themeToggle").addEventListener("click", draw);
 })();
+
+/* ---------- header glass once the page scrolls ---------- */
+const hdr = document.querySelector("header");
+const hdrGlass = () => hdr.classList.toggle("scrolled", scrollY > 40);
+addEventListener("scroll", hdrGlass, { passive: true });
+hdrGlass();
 
 /* ---------- dive-rail nav + reveal animations ---------- */
 const railLinks = [...document.querySelectorAll("#rail a")];
